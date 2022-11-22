@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta charset='utf-8'>
+        <title>Choropleth Map of Washington COVID-19 cases</title>
+        <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+        <link href="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.css" rel="stylesheet">
+        <script src="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.js"></script>
+        <style>
+            h2, h3 {
+                margin: 10px;
+                font-size: 18px;
+            }
+
+            h3 {
+                font-size: 16px;
+            }
+
+            p {
+                margin: 10px;
+            }
+
+            #map {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+            }
+
+            .map-overlay {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                background: rgba(52, 172, 232, 0.8);
+                border-style: solid;
+                border-width: 1px;
+                border-color: rgba(0, 0, 0, 0.2);
+                margin-left: 20px;
+                font-family: Arial, sans-serif;
+                overflow: auto;
+                border-radius: 3px;
+            }
+
+            #features {
+                top: 0;
+                height: 130px;
+                margin-top: 20px;
+                width: 250px;
+            }
+
+            #legend {
+                padding: 10px;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+                line-height: 18px;
+                height: 210px;
+                margin-bottom: 40px;
+                width: 150px;
+            }
+
+            .legend-key {
+                display: inline-block;
+                border-radius: 20%;
+                width: 10px;
+                height: 10px;
+                margin-right: 5px;
+            }
+
+            .mapboxgl-canvas-container.mapboxgl-interactive,
+             .mapboxgl-ctrl-group button.mapboxgl-ctrl-compass {
+               cursor: unset;
+            }
+
+        </style>
+    </head>
+
+    <body>
+        <div id="map"></div>
+        <div class='map-overlay' id='features'>
+            <h2>Washington COVID-19 cases by County</h2>
+            <div id='text-description'>
+                <p>Hover over a county!</p>
+            </div>
+        </div>
+        <div class='map-overlay' id='legend'></div></div>
+        <script>
+            mapboxgl.accessToken = 'pk.eyJ1IjoiamFrb2J6aGFvIiwiYSI6ImNpcms2YWsyMzAwMmtmbG5icTFxZ3ZkdncifQ.P9MBej1xacybKcDN_jehvw';
+
+            const map = new mapboxgl.Map({
+                    container: 'map', // container ID
+                    style: 'mapbox://styles/mapbox/dark-v10', // style URL
+                    zoom: 6, // starting zoom
+                    center: [-120, 48] // starting center
+                }
+            );
+
+            async function geojsonFetch() { 
+                let response = await fetch('assets/wa-covid-data-102521.geojson');
+                let caseData = await response.json();
+                
+                map.on('load', function loadingData() {
+                    map.addSource('wa-covid-data-102521', {
+                        type: 'geojson',
+                        data: caseData
+                    });
+
+                    map.addLayer({
+                        'id': 'caseData-layer',
+                        'type': 'fill',
+                        'source': 'wa-covid-data-102521',
+                        'paint': {
+                            'fill-color': [
+                                'step',
+                                ['get', 'casePer10k'],
+                                '#F6E7CD',   
+                                500,                  
+                                '#FFEDA0',   
+                                1000,          
+                                '#FED976',   
+                                1250,        
+                                '#FEB24C',   
+                                1500,       
+                                '#FD8D3C',     
+                                2000,        
+                                '#FC4E2A'   
+                            ],
+                            'fill-outline-color': '#BBBBBB',
+                            'fill-opacity': 0.7,
+                        }
+                    });
+
+                    const layers = [
+                        '0-499',
+                        '500-999',
+                        '1000-1249',
+                        '1250-1499',
+                        '1500-1999',
+                        '2000 and more'
+                    ];
+                    const colors = [
+                        '#F6E7CD',     
+                        '#FFEDA0',
+                        '#FED976',
+                        '#FEB24C',
+                        '#FD8D3C',
+                        '#FC4E2A' 
+                    ];    
+
+                    const legend = document.getElementById('legend');
+                    legend.innerHTML = "<b>Cases per 10000 people<br>";
+
+                    layers.forEach((layer, i) => {
+                        const color = colors[i];
+                        const item = document.createElement('div');
+                        const key = document.createElement('span');
+                        key.className = 'legend-key';
+                        key.style.backgroundColor = color;
+
+                        const value = document.createElement('span');
+                        value.innerHTML = `${layer}`;
+                        item.appendChild(key);
+                        item.appendChild(value);
+                        legend.appendChild(item);
+                    });
+
+                });
+
+                map.on('mousemove', ({point}) => {
+                    const county = map.queryRenderedFeatures(point, {
+                        layers: ['caseData-layer']
+                    });
+                    document.getElementById('text-description').innerHTML = county.length ?
+                        `<h3>${county[0].properties.name}</h3><p><strong><em>${county[0].properties.casePer10k}</strong> cases per 10k people</em></p>` :
+                        `<p>Hover over a county!</p>`;
+                });
+
+            }
+            geojsonFetch();
+        </script>
+    </body>
+    
+
+</html>
